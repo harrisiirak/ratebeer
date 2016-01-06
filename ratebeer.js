@@ -3,6 +3,7 @@
 const rateBeerBaseUrl = 'http://www.ratebeer.com/';
 const scrapingDefaultErrorMessage = "This could be indicative that RateBeer has changed their layout and that this library needs an update. Please leave an issue on github!";
 
+var path = require('path');
 var cheerio = require('cheerio');
 var similarity = require('string-similarity');
 var _ = require('underscore');
@@ -29,7 +30,7 @@ function extractRating($, ratingType) {
 function parseUserRatings($, cb) {
   var ratingAttributes = $.find('div[style^="padding: 0px"]');
   var ratingReviews = $.find('div[style^="padding: 20px"]');
-  var ratingAuthors = $.find('small[style^="color: #666666"]');
+  var ratingAuthors = $.find('small[style^="color: #666666; font-size: 12px"]');
 
   // Check consistency
   if (ratingAttributes.length !== ratingReviews.length && ratingReviews.length !== ratingAuthors.length) {
@@ -63,7 +64,7 @@ function parseUserRatings($, cb) {
     var ratingAuthorDetails = ratingAuthor.children[0].children[0].data.match(/(\w+)/g);
     rating.author.profileUri = rateBeerBaseUrl + ratingAuthor.children[0].attribs.href;
     rating.author.name = ratingAuthorDetails[0];
-    rating.author.raitings = ratingAuthorDetails[1];
+    rating.author.ratings = ratingAuthorDetails[1];
 
     // Rating location and date
     if (ratingAuthor.children[1].data) {
@@ -215,13 +216,18 @@ var rb = module.exports = {
         }
 
         for (var currentPage = startPage; currentPage <= totalPages; currentPage++) {
-          reqs.push(extractUserRatings(null, url + '/' + ratingsSortingFlag + '/' + currentPage));
+          reqs.push(extractUserRatings(null, path.resolve(url, ratingsSortingFlag.toString(), currentPage.toString()) + '/'));
         }
 
-        Promise.all(reqs).then(function(ratings) {
+        Promise.all(reqs).then(function(pages) {
           beerInfo.ratings = {
-            pagesCount: ratings.length,
-            pages: ratings
+            totalCount: pages.map(function(page) {
+              return page.length;
+            }).reduce(function(a, b) {
+              return a + b;
+            }),
+            pagesCount: pages.length,
+            pages: pages
           };
 
           cb(null, beerInfo);
