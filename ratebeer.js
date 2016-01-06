@@ -1,23 +1,112 @@
+'use strict';
+
+const rateBeerBaseUrl = 'http://www.ratebeer.com/';
+const scrapingDefaultErrorMessage = "This could be indicative that RateBeer has changed their layout and that this library needs an update. Please leave an issue on github!";
+
+var path = require('path');
 var cheerio = require('cheerio');
 var similarity = require('string-similarity');
 var _ = require('underscore');
 var request = require('request');
 var iconv = require('iconv');
 var utf8 = require('utf8');
-
-var map = Array.prototype.map;
-
 var ic = new iconv.Iconv('iso-8859-1', 'utf-8');
+
 function decodePage(html) {
   var buf = ic.convert(html);
   return utf8.decode(buf.toString())
 }
 
-var scrapeConfusionMessage = "This could be indicative that RateBeer has changed their layout and that this library needs an update. Please leave an issue on github!";
+function extractRating($, ratingType) {
+  return $('span:contains("' + ratingType + '")').parent().contents().filter(function() {
+    if (this.nodeType === 3) {
+      var parseResult = parseInt(this.nodeValue);
+      return !isNaN(parseResult) && parseResult >= 0 && parseResult <= 100;
+    }
+    return false;
+  });
+}
+
+function parseUserRatings($, cb) {
+  var ratingAttributes = $.find('div[style^="padding: 0px"]');
+  var ratingReviews = $.find('div[style^="padding: 20px"]');
+  var ratingAuthors = $.find('small[style^="color: #666666; font-size: 12px"]');
+
+  // Check consistency
+  if (ratingAttributes.length !== ratingReviews.length && ratingReviews.length !== ratingAuthors.length) {
+    return cb(new Error('Ratings parsing failed. ' + scrapingDefaultErrorMessage));
+  }
+
+  // Collect data
+  var ratings = [];
+  for (var i = 0, c = ratingAttributes.length; i < c; i++) {
+    var rating = {
+      author: {},
+      scores: {}
+    };
+
+    // Avatar section
+    var ratingAttribute = cheerio(ratingAttributes[i]);
+    var ratingAvatar = ratingAttribute.find('div');
+    rating.author.avatarUri = ratingAvatar.find('img').attr('src');
+    rating.scores.calculated = ratingAvatar.last().text();
+
+    // Rating details section
+    var ratingDetails = ratingAttribute.find('strong > big');
+    rating.scores.aroma = ratingDetails[0].children[0].data;
+    rating.scores.appearance = ratingDetails[1].children[0].data;
+    rating.scores.taste = ratingDetails[2].children[0].data;
+    rating.scores.palate = ratingDetails[3].children[0].data;
+    rating.scores.overall = ratingDetails[4].children[0].data;
+
+    // Rating author
+    var ratingAuthor = ratingAuthors[i];
+    var ratingAuthorDetails = ratingAuthor.children[0].children[0].data.match(/(\w+)/g);
+    rating.author.profileUri = rateBeerBaseUrl + ratingAuthor.children[0].attribs.href;
+    rating.author.name = ratingAuthorDetails[0];
+    rating.author.ratings = ratingAuthorDetails[1];
+
+    // Rating location and date
+    if (ratingAuthor.children[1].data) {
+      var ratingCreationDetails = ratingAuthor.children[1].data.split('- ');
+      rating.location = ratingCreationDetails[1].trim();
+      rating.createdAt = ratingCreationDetails[2].trim();
+    }
+
+    // Raiting content
+    rating.content = ratingReviews[i].children[0].data;
+    ratings.push(rating);
+  }
+
+  cb(null, ratings);
+}
+
+function extractUserRatings($, url) {
+  return new Promise(function(resolve, reject) {
+    if ($) {
+      parseUserRatings($, function(err, data) {
+        if (err) return reject(err);
+        resolve(data);
+      });
+    } else {
+      request({
+        url: 'http://www.ratebeer.com' + url,
+        encoding: 'binary'
+      }, function(err, response, html) {
+        if (err) return reject(err);
+        var $ = cheerio.load(decodePage(html));
+        parseUserRatings($('table[style="padding: 10px;"]'), function(err, data) {
+          if (err) return reject(err);
+          resolve(data);
+        });
+      });
+    }
+  });
+}
 
 var rb = module.exports = {
   searchAll: function(q, cb) {
-    var q = escape(q.replace(' ', '+'))
+    q = escape(q.replace(' ', '+'));
     request.post({
       url: 'http://www.ratebeer.com/findbeer.asp',
       headers: { 'Content-Type':'application/x-www-form-urlencoded' },
@@ -54,34 +143,34 @@ var rb = module.exports = {
       else rb.getBeerByUrl(beer.url, cb);
     });
   },
-  getBeerByUrl: function(url, cb) {
+  getBeerByUrl: function(url, opts, cb) {
+    if (typeof cb === 'undefined') {
+      cb = opts;
+      opts = null;
+    }
+
     request({
       url: 'http://www.ratebeer.com' + url,
       encoding: 'binary'
     }, function(err, response, html) {
       if (err) return cb(err);
       var $ = cheerio.load(decodePage(html));
+
+      // Parse basic beer information
       var beerInfo = {
-        name: $('[itemprop=itemreviewed]').text(),
-        ratingsCount: parseInt($('[itemprop=count]').text()),
+        name: $('[itemprop=name]').text(),
+        ratingsCount: parseInt($('[itemprop=reviewCount]').text()),
         ratingsWeightedAverage: parseFloat($('[name="real average"] big strong').text())
-      }
+      };
 
-      var ratings = _.chain($('span[itemprop=rating] span')).map(function(span) {
-        return parseInt($(span).text())
-      }).filter(function(parseResult) {
-        return !isNaN(parseResult) && parseResult >= 0 && parseResult <= 100
-      }).value();
-
-      if (ratings.length == 2) {
-        beerInfo.ratingOverall = ratings[0];
-        beerInfo.ratingStyle = ratings[1];
-      }
+      // Parse overall and style rating
+      beerInfo.ratingOverall = parseInt(extractRating($, 'overall').text());
+      beerInfo.ratingStyle = parseInt(extractRating($, 'style').text());
 
       var titlePlate = $('big').first()
       
       if (!titlePlate.text().match(/brewed (by|at)/i)) {
-        return cb(new Error("Page consistency check failed. " + scrapeConfusionMessage));
+        return cb(new Error("Page consistency check failed. " + scrapingDefaultErrorMessage));
       }
 
       titlePlate = titlePlate.parent();
@@ -97,13 +186,55 @@ var rb = module.exports = {
       var abv = $('[title~=Alcohol]').next('big').text();
       if (abv) beerInfo.abv = parseFloat(abv);
 
-      var desc = $('[itemprop=count]').parents('div').first().next().text();
+      var desc = $('[itemprop=reviewCount]').parents('div').first().next().text();
       if (desc) beerInfo.desc = desc.replace(/^COMMERCIAL DESCRIPTION/, '');
 
       var img = $('#beerImg').parent().attr('href');
       if (!img.match(/post\.asp/)) beerInfo.image = img;
 
-      cb(null, beerInfo);
+      // Include user rating
+      if (opts && opts.includeUserRatings) {
+        var totalPages = $('a[class=ballno]').last().text();
+        var startPage = 1;
+        var ratingsSortingFlag = 1;
+
+        // Switch sorting
+        if (opts.sortByLatest) {
+          ratingsSortingFlag = 1;
+        } else if (opts.sortByTopRater) {
+          ratingsSortingFlag = 2;
+        } else if (opts.sortByHighest) {
+          ratingsSortingFlag = 3;
+        }
+
+        // Generate requests
+        // Don't send double requests for the first page if default sorting order is used
+        var reqs = [];
+        if (ratingsSortingFlag === 1) {
+          reqs.push(extractUserRatings($('table[style="padding: 10px;"]'), null));
+          startPage++;
+        }
+
+        for (var currentPage = startPage; currentPage <= totalPages; currentPage++) {
+          reqs.push(extractUserRatings(null, path.resolve(url, ratingsSortingFlag.toString(), currentPage.toString()) + '/'));
+        }
+
+        Promise.all(reqs).then(function(pages) {
+          beerInfo.ratings = {
+            totalCount: pages.map(function(page) {
+              return page.length;
+            }).reduce(function(a, b) {
+              return a + b;
+            }),
+            pagesCount: pages.length,
+            pages: pages
+          };
+
+          cb(null, beerInfo);
+        }, function(err) {
+          cb(err);
+        });
+      }
     })
   }
 };
