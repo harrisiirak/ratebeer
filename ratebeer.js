@@ -106,7 +106,6 @@ function extractUserRatings($, url) {
 
 var rb = module.exports = {
   searchAll: function(q, cb) {
-    q = escape(q.replace(' ', '+'));
     request.post({
       url: 'http://www.ratebeer.com/findbeer.asp',
       headers: { 'Content-Type':'application/x-www-form-urlencoded' },
@@ -122,7 +121,14 @@ var rb = module.exports = {
           url: beer.attr('href')
         };
       });
-      result = [].slice.apply(result)
+      result = [].slice.apply(result);
+
+      // Use Google fallback if no results
+      if (!result.length) {
+        _googleFallbackSearch(q, cb);
+        return;
+      }
+
       cb(null, result);
     });
   },
@@ -168,7 +174,7 @@ var rb = module.exports = {
       beerInfo.ratingStyle = parseInt(extractRating($, 'style').text());
 
       var titlePlate = $('big').first()
-      
+
       if (!titlePlate.text().match(/brewed (by|at)/i)) {
         return cb(new Error("Page consistency check failed. " + scrapingDefaultErrorMessage));
       }
@@ -248,6 +254,6 @@ var _googleFallbackSearch = function(q, cb) {
     if (!links.length) return cb();
     if (!links[0].link.match(/com\/beer\//)) return cb();
     var urlComponents = url.parse(links[0].link);
-    cb(null, { name: q, url: urlComponents.path });
+    cb(null, [ { name: q, url: urlComponents.path } ]);
   });
 };
