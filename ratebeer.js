@@ -241,6 +241,8 @@ var rb = module.exports = {
         }, function(err) {
           cb(err);
         });
+      } else {
+        cb(null, beerInfo);
       }
     })
   }
