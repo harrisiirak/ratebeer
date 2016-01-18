@@ -106,6 +106,14 @@ function extractUserRatings($, url) {
 
 var rb = module.exports = {
   searchAll: function(q, cb) {
+    q = q
+        .replace(/(\s)/g, '+')
+        .replace(/'/g, '')
+        .replace(/’/g, '')
+        .replace(/"/g, '');
+
+    q = escape(q);
+
     request.post({
       url: 'http://www.ratebeer.com/findbeer.asp',
       headers: { 'Content-Type':'application/x-www-form-urlencoded' },
@@ -122,13 +130,6 @@ var rb = module.exports = {
         };
       });
       result = [].slice.apply(result);
-
-      // Use Google fallback if no results
-      if (!result.length) {
-        _googleFallbackSearch(q, cb);
-        return;
-      }
-
       cb(null, result);
     });
   },
@@ -243,17 +244,4 @@ var rb = module.exports = {
       }
     })
   }
-};
-
-var google = require('google');
-var url = require('url');
-var _googleFallbackSearch = function(q, cb) {
-  google.resultsPerPage = 1;
-  google(q + ' site:ratebeer.com', function(err, next, links) {
-    if (err) return cb(err);
-    if (!links.length) return cb();
-    if (!links[0].link.match(/com\/beer\//)) return cb();
-    var urlComponents = url.parse(links[0].link);
-    cb(null, [ { name: q, url: urlComponents.path } ]);
-  });
 };
