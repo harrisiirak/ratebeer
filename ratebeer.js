@@ -49,22 +49,22 @@ function parseUserRatings($, cb) {
     var ratingAttribute = cheerio(ratingAttributes[i]);
     var ratingAvatar = ratingAttribute.find('div');
     rating.author.avatarUri = ratingAvatar.find('img').attr('src');
-    rating.scores.calculated = ratingAvatar.last().text();
+    rating.scores.calculated = parseInt(ratingAvatar.last().text());
 
     // Rating details section
     var ratingDetails = ratingAttribute.find('strong > big');
-    rating.scores.aroma = ratingDetails[0].children[0].data;
-    rating.scores.appearance = ratingDetails[1].children[0].data;
-    rating.scores.taste = ratingDetails[2].children[0].data;
-    rating.scores.palate = ratingDetails[3].children[0].data;
-    rating.scores.overall = ratingDetails[4].children[0].data;
+    rating.scores.aroma = parseInt(ratingDetails[0].children[0].data);
+    rating.scores.appearance = parseInt(ratingDetails[1].children[0].data);
+    rating.scores.taste = parseInt(ratingDetails[2].children[0].data);
+    rating.scores.palate = parseInt(ratingDetails[3].children[0].data);
+    rating.scores.overall = parseInt(ratingDetails[4].children[0].data);
 
     // Rating author
     var ratingAuthor = ratingAuthors[i];
     var ratingAuthorDetails = ratingAuthor.children[0].children[0].data.match(/(\w+)/g);
-    rating.author.profileUri = rateBeerBaseUrl + ratingAuthor.children[0].attribs.href;
+    rating.author.profileUri = rateBeerBaseUrl + ratingAuthor.children[0].attribs.href.substring(1);
     rating.author.name = ratingAuthorDetails[0];
-    rating.author.ratings = ratingAuthorDetails[1];
+    rating.author.ratings = parseInt(ratingAuthorDetails[1]);
 
     // Rating location and date
     if (ratingAuthor.children[1].data) {
