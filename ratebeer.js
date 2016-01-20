@@ -160,11 +160,22 @@ var rb = module.exports = {
       url: 'http://www.ratebeer.com' + url,
       encoding: 'binary'
     }, function(err, response, html) {
-      if (err) return cb(err);
+      if (err) {
+        return cb(err);
+      }
+
       var $ = cheerio.load(decodePage(html));
+      var id = null;
+
+      // Parse id from the url
+      try {
+        id = parseInt(url.split('/')[3]);
+      } catch (e) {
+      }
 
       // Parse basic beer information
       var beerInfo = {
+        id: id,
         name: $('[itemprop=name]').text(),
         ratingsCount: parseInt($('[itemprop=reviewCount]').text()),
         ratingsMeanAverage: parseFloat($('[name="real average"] big strong').text()),
@@ -193,8 +204,7 @@ var rb = module.exports = {
 
       try {
         beerInfo.location = titlePlate.find('br:last-child')[0].nextSibling.data.trim();
-      } catch(e){
-
+      } catch(e) {
       }
 
       var ibus = $('[title~=Bittering]').next('big').text();
