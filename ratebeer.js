@@ -167,12 +167,13 @@ var rb = module.exports = {
       var beerInfo = {
         name: $('[itemprop=name]').text(),
         ratingsCount: parseInt($('[itemprop=reviewCount]').text()),
-        ratingsWeightedAverage: parseFloat($('[name="real average"] big strong').text())
+        ratingsMeanAverage: parseFloat($('[name="real average"] big strong').text()),
+        ratingsWeightedAverage: parseFloat($('[itemprop=ratingValue]').text())
       };
 
       // Parse overall and style rating
-      beerInfo.ratingOverall = parseInt(extractRating($, 'overall').text());
-      beerInfo.ratingStyle = parseInt(extractRating($, 'style').text());
+      beerInfo.ratingOverall = parseInt(extractRating($, 'overall').text()) || null;
+      beerInfo.ratingStyle = parseInt(extractRating($, 'style').text()) || null;
 
       var titlePlate = $('big').first()
 
@@ -182,22 +183,44 @@ var rb = module.exports = {
 
       titlePlate = titlePlate.parent();
       beerInfo.brewery = titlePlate.find('big b a').text();
+
       var brewedAt = titlePlate.find('big > a').text();
-      if (brewedAt) beerInfo.brewedAt = brewedAt;
+      if (brewedAt) {
+        beerInfo.brewedAt = brewedAt;
+      }
+
       beerInfo.style = titlePlate.children('a').first().text();
-      try { beerInfo.location = titlePlate.find('br:last-child')[0].nextSibling.data.trim() } catch(e){}
+
+      try {
+        beerInfo.location = titlePlate.find('br:last-child')[0].nextSibling.data.trim();
+      } catch(e){
+
+      }
 
       var ibus = $('[title~=Bittering]').next('big').text();
-      if (ibus) beerInfo.ibu = parseInt(ibus);
+      if (ibus) {
+        beerInfo.ibu = parseInt(ibus);
+      }
 
       var abv = $('[title~=Alcohol]').next('big').text();
-      if (abv) beerInfo.abv = parseFloat(abv);
+      if (abv) {
+        beerInfo.abv = parseFloat(abv);
+      }
+
+      var kcal = $('[title~=Estimated]').next('big').text();
+      if (kcal) {
+        beerInfo.kcal = parseFloat(kcal) || null;
+      }
 
       var desc = $('[itemprop=reviewCount]').parents('div').first().next().text();
-      if (desc) beerInfo.desc = desc.replace(/^COMMERCIAL DESCRIPTION/, '');
+      if (desc) {
+        beerInfo.desc = desc.replace(/^COMMERCIAL DESCRIPTION/, '');
+      }
 
       var img = $('#beerImg').parent().attr('href');
-      if (!img.match(/post\.asp/)) beerInfo.image = img;
+      if (!img.match(/post\.asp/)) {
+        beerInfo.image = img;
+      }
 
       // Include user rating
       if (opts && opts.includeUserRatings) {
