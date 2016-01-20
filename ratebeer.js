@@ -12,6 +12,14 @@ var iconv = require('iconv');
 var utf8 = require('utf8');
 var ic = new iconv.Iconv('iso-8859-1', 'utf-8');
 
+// Create base reques for fetching data
+var pendingRequests = [];
+var baseRequest = request.defaults({
+  pool: {
+    maxSockets: 15
+  }
+});
+
 function decodePage(html) {
   var buf = ic.convert(html);
   return utf8.decode(buf.toString())
@@ -27,7 +35,7 @@ function extractRating($, ratingType) {
   });
 }
 
-function parseUserRatings($, cb) {
+function parseUserRatings(url, $, cb) {
   var ratingAttributes = $.find('div[style^="padding: 0px"]');
   var ratingReviews = $.find('div[style^="padding: 20px"]');
   var ratingAuthors = $.find('small[style^="color: #666666; font-size: 12px"]');
@@ -74,7 +82,11 @@ function parseUserRatings($, cb) {
     }
 
     // Raiting content
-    rating.content = ratingReviews[i].children[0].data;
+    // Some reviews may be without content, so yeah...
+    if (ratingReviews[i].children.length) {
+      rating.content = ratingReviews[i].children[0].data;
+    }
+
     ratings.push(rating);
   }
 
@@ -89,17 +101,19 @@ function extractUserRatings($, url) {
         resolve(data);
       });
     } else {
-      request({
+      var req = baseRequest({
         url: 'http://www.ratebeer.com' + url,
         encoding: 'binary'
       }, function(err, response, html) {
         if (err) return reject(err);
         var $ = cheerio.load(decodePage(html));
-        parseUserRatings($('table[style="padding: 10px;"]'), function(err, data) {
+        parseUserRatings(url, $('table[style="padding: 10px;"]'), function(err, data) {
           if (err) return reject(err);
           resolve(data);
         });
       });
+
+      pendingRequests.push(req);
     }
   });
 }
@@ -114,7 +128,7 @@ var rb = module.exports = {
 
     q = escape(q);
 
-    request.post({
+    baseRequest.post({
       url: 'http://www.ratebeer.com/findbeer.asp',
       headers: { 'Content-Type':'application/x-www-form-urlencoded' },
       body: 'beername=' + q,
@@ -156,7 +170,7 @@ var rb = module.exports = {
       opts = null;
     }
 
-    request({
+    baseRequest({
       url: 'http://www.ratebeer.com' + url,
       encoding: 'binary'
     }, function(err, response, html) {
@@ -283,6 +297,9 @@ var rb = module.exports = {
 
           cb(null, beerInfo);
         }, function(err) {
+          pendingRequests.forEach(function(req) {
+            req.abort();
+          });
           cb(err);
         });
       } else {
