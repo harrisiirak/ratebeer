@@ -173,9 +173,20 @@ var rb = module.exports = {
       } catch (e) {
       }
 
+      // Handle aliased beer
+      var aliasContent = $('div:contains("Proceed to the aliased beer...") a[href^="/beer/"]');
+      if (aliasContent.length) {
+        var aliasUrl = aliasContent.first().attr('href');
+        if (aliasUrl) {
+          opts.refId = id; // Retain original refId
+          return rb.getBeerByUrl(aliasUrl, opts, cb);
+        }
+      }
+
       // Parse basic beer information
       var beerInfo = {
-        id: id,
+        id: opts.refId || id,
+        refId: opts.refId ? id : null,
         name: $('[itemprop=name]').text(),
         ratingsCount: parseInt($('[itemprop=reviewCount]').text()),
         ratingsMeanAverage: parseFloat($('[name="real average"] big strong').text()),
