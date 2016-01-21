@@ -35,7 +35,7 @@ function extractRating($, ratingType) {
   });
 }
 
-function parseUserRatings(url, $, cb) {
+function parseUserRatings($, cb) {
   var ratingAttributes = $.find('div[style^="padding: 0px"]');
   var ratingReviews = $.find('div[style^="padding: 20px"]');
   var ratingAuthors = $.find('small[style^="color: #666666; font-size: 12px"]');
@@ -107,7 +107,7 @@ function extractUserRatings($, url) {
       }, function(err, response, html) {
         if (err) return reject(err);
         var $ = cheerio.load(decodePage(html));
-        parseUserRatings(url, $('table[style="padding: 10px;"]'), function(err, data) {
+        parseUserRatings($('table[style="padding: 10px;"]'), function(err, data) {
           if (err) return reject(err);
           resolve(data);
         });
