@@ -121,10 +121,10 @@ function extractUserRatings($, url) {
 var rb = module.exports = {
   searchAll: function(q, cb) {
     q = q
-        .replace(/(\s)/g, '+')
-        .replace(/'/g, '')
-        .replace(/’/g, '')
-        .replace(/"/g, '');
+      .replace(/(\s)/g, '+')
+      .replace(/'/g, '')
+      .replace(/’/g, '')
+      .replace(/"/g, '');
 
     q = escape(q);
 
@@ -161,7 +161,7 @@ var rb = module.exports = {
     rb.search(q, function(e, beer) {
       if (e) return cb(e);
       else if (beer == null) return cb();
-      else rb.getBeerByUrl(beer.url, cb);
+      else rb.getBeerByUrl(beer.url, {}, cb);
     });
   },
   getBeerByUrl: function(url, opts, cb) {
@@ -201,7 +201,7 @@ var rb = module.exports = {
       var beerInfo = {
         id: opts.refId || id,
         refId: opts.refId ? id : null,
-        name: $('[itemprop=name]').text(),
+        name: $('[itemprop=name]').first().text(),
         ratingsCount: parseInt($('[itemprop=reviewCount]').text()),
         ratingsMeanAverage: parseFloat($('[name="real average"] big strong').text()),
         ratingsWeightedAverage: parseFloat($('[itemprop=ratingValue]').text())
