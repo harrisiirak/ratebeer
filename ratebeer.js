@@ -91,10 +91,18 @@ function parseUserRatings($, cb) {
       rating.createdAt = ratingCreationDetails[2].trim();
     }
 
-    // Raiting content
+    // Rating content
     // Some reviews may be without content, so yeah...
     if (ratingReviews[i].children.length) {
-      rating.content = ratingReviews[i].children[0].data;
+      if (rating.author.name === 'jookos') {
+        console.log(ratingReviews[i].children);
+      }
+
+      rating.content = ratingReviews[i].children.map(function (child) {
+        return child.data;
+      }).filter(function (data) {
+        return data;
+      }).join('\n');
     }
 
     ratings.push(rating);
