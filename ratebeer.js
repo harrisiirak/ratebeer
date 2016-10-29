@@ -5,8 +5,6 @@ const scrapingDefaultErrorMessage = "This could be indicative that RateBeer has 
 
 var path = require('path');
 var cheerio = require('cheerio');
-var similarity = require('string-similarity');
-var _ = require('underscore');
 var request = require('request');
 var iconv = require('iconv');
 var utf8 = require('utf8');
@@ -169,10 +167,7 @@ var rb = module.exports = {
     rb.searchAll(q, function(e, result) {
       if (e) return cb(e);
       if (!result || result.length == 0) return cb();
-      var sorted = _.sortBy(result, function(beer) {
-        return similarity.compareTwoStrings(q, beer.name);
-      }).reverse();
-      cb(null, sorted[0]);
+      cb(null, result[0]);
     });
   },
   getBeer: function(q, cb) {
