@@ -214,6 +214,7 @@ var rb = module.exports = {
       var beerInfo = {
         id: opts.refId || id,
         refId: opts.refId ? id : null,
+        url: url,
         name: $('[itemprop=name]').first().text(),
         ratingsCount: parseInt($('[itemprop=ratingCount]').text()),
         ratingsMeanAverage: parseFloat($('[name="real average"] big strong').text()),
