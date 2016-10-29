@@ -27,10 +27,20 @@ function decodePage(html) {
 
 function extractRating($, ratingType) {
   return $('span:contains("' + ratingType + '")').parent().contents().filter(function() {
+    var parseResult = null;
+
     if (this.nodeType === 3) {
-      var parseResult = parseInt(this.nodeValue);
+      parseResult = parseInt(this.nodeValue);
+    }
+
+    if (this.attribs && this.attribs.itemprop === 'ratingValue') {
+      parseResult = parseInt(this.children.length && this.children[0].data);
+    }
+
+    if (parseResult) {
       return !isNaN(parseResult) && parseResult >= 0 && parseResult <= 100;
     }
+
     return false;
   });
 }
@@ -202,16 +212,16 @@ var rb = module.exports = {
         id: opts.refId || id,
         refId: opts.refId ? id : null,
         name: $('[itemprop=name]').first().text(),
-        ratingsCount: parseInt($('[itemprop=reviewCount]').text()),
+        ratingsCount: parseInt($('[itemprop=ratingCount]').text()),
         ratingsMeanAverage: parseFloat($('[name="real average"] big strong').text()),
-        ratingsWeightedAverage: parseFloat($('[itemprop=ratingValue]').text())
+        ratingsWeightedAverage: parseFloat($('[itemprop=ratingValue]').last().text())
       };
 
       // Parse overall and style rating
       beerInfo.ratingOverall = parseInt(extractRating($, 'overall').text()) || null;
       beerInfo.ratingStyle = parseInt(extractRating($, 'style').text()) || null;
 
-      var titlePlate = $('big').first()
+      var titlePlate = $('big').first();
 
       if (!titlePlate.text().match(/brewed (by|at)/i)) {
         return cb(new Error("Page consistency check failed. " + scrapingDefaultErrorMessage));
