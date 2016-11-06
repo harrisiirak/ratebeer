@@ -6,9 +6,6 @@ const scrapingDefaultErrorMessage = "This could be indicative that RateBeer has 
 var path = require('path');
 var cheerio = require('cheerio');
 var request = require('request');
-var iconv = require('iconv');
-var utf8 = require('utf8');
-var ic = new iconv.Iconv('iso-8859-1', 'utf-8');
 
 // Create base reques for fetching data
 var pendingRequests = [];
@@ -17,31 +14,6 @@ var baseRequest = request.defaults({
     maxSockets: 15
   }
 });
-
-function decodePage(html) {
-  var buf = ic.convert(html);
-  return utf8.decode(buf.toString())
-}
-
-function extractRating($, ratingType) {
-  return $('span:contains("' + ratingType + '")').parent().contents().filter(function() {
-    var parseResult = null;
-
-    if (this.nodeType === 3) {
-      parseResult = parseInt(this.nodeValue);
-    }
-
-    if (this.attribs && this.attribs.itemprop === 'ratingValue') {
-      parseResult = parseInt(this.children.length && this.children[0].data);
-    }
-
-    if (parseResult) {
-      return !isNaN(parseResult) && parseResult >= 0 && parseResult <= 100;
-    }
-
-    return false;
-  });
-}
 
 function parseUserRatings($, cb) {
   var ratingAttributes = $.find('div[style^="padding: 0px"]');
@@ -122,7 +94,7 @@ function extractUserRatings($, url) {
         encoding: 'binary'
       }, function(err, response, html) {
         if (err) return reject(err);
-        var $ = cheerio.load(decodePage(html));
+        var $ = cheerio.load(html);
         parseUserRatings($('table[style="padding: 10px;"]'), function(err, data) {
           if (err) return reject(err);
           resolve(data);
@@ -151,7 +123,7 @@ var rb = module.exports = {
       encoding: 'binary'
     }, function(err, response, html) {
       if (err) return cb(err);
-      var $ = cheerio.load(decodePage(html));
+      var $ = cheerio.load(html);
       var result = $('table').first().find('td:first-child a').map(function() {
         var beer = $(this);
         return {
@@ -170,11 +142,16 @@ var rb = module.exports = {
       cb(null, result[0]);
     });
   },
-  getBeer: function(q, cb) {
+  getBeer: function(q, opts, cb) {
+    if (typeof cb === 'undefined') {
+      cb = opts;
+      opts = null;
+    }
+
     rb.search(q, function(e, beer) {
       if (e) return cb(e);
       else if (beer == null) return cb();
-      else rb.getBeerByUrl(beer.url, {}, cb);
+      else rb.getBeerByUrl(beer.url, opts, cb);
     });
   },
   getBeerByUrl: function(url, opts, cb) {
@@ -191,7 +168,7 @@ var rb = module.exports = {
         return cb(err);
       }
 
-      var $ = cheerio.load(decodePage(html));
+      var $ = cheerio.load(html);
       var id = null;
 
       // Parse id from the url
@@ -222,8 +199,11 @@ var rb = module.exports = {
       };
 
       // Parse overall and style rating
-      beerInfo.ratingOverall = parseInt(extractRating($, 'overall').text()) || null;
-      beerInfo.ratingStyle = parseInt(extractRating($, 'style').text()) || null;
+      var overallRatingContainer = $('div[class="score-container"] > div[class="ratingValue"]');
+      var styleRatingContainer = $('div[class="style-text"]').parent().contents();
+
+      beerInfo.ratingOverall = parseInt(overallRatingContainer.text()) || null;
+      beerInfo.ratingStyle = styleRatingContainer.length && styleRatingContainer[0].type === 'text' ? parseInt(styleRatingContainer[0].data) : null;
 
       var titlePlate = $('big').first();
 

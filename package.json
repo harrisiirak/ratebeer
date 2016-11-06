@@ -11,8 +11,6 @@
   "license": "MIT",
   "dependencies": {
     "cheerio": "^0.22.0",
-    "iconv": "^2.2.1",
     "request": "^2.76.0",
-    "utf8": "^2.1.2"
   }
 }
