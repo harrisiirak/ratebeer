@@ -145,7 +145,7 @@ var rb = module.exports = {
   getBeer: function(q, opts, cb) {
     if (typeof cb === 'undefined') {
       cb = opts;
-      opts = null;
+      opts = {};
     }
 
     rb.search(q, function(e, beer) {
@@ -157,7 +157,7 @@ var rb = module.exports = {
   getBeerByUrl: function(url, opts, cb) {
     if (typeof cb === 'undefined') {
       cb = opts;
-      opts = null;
+      opts = {};
     }
 
     baseRequest({
