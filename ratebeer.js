@@ -117,13 +117,14 @@ var rb = module.exports = {
     q = escape(q);
 
     baseRequest.post({
-      url: 'http://www.ratebeer.com/findbeer.asp',
+      url: 'https://www.ratebeer.com/findbeer.asp',
       headers: { 'Content-Type':'application/x-www-form-urlencoded' },
       body: 'beername=' + q,
       encoding: 'binary'
     }, function(err, response, html) {
       if (err) return cb(err);
       var $ = cheerio.load(html);
+
       var result = $('table').first().find('td:first-child a').map(function() {
         var beer = $(this);
         return {
@@ -161,7 +162,7 @@ var rb = module.exports = {
     }
 
     baseRequest({
-      url: 'http://www.ratebeer.com' + url,
+      url: 'https://www.ratebeer.com' + url,
       encoding: 'binary'
     }, function(err, response, html) {
       if (err) {
